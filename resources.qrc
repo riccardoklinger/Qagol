@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/Qagol" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
