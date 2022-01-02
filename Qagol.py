@@ -21,16 +21,25 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
+from qgis.PyQt.QtCore import (
+    QSettings,
+    QTranslator,
+    QCoreApplication,
+)
+from qgis.core import QgsApplication, QgsSettings
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
 from .resources import *
+
 # Import the code for the dialog
 from .Qagol_dialog import QagolDialog
 import os.path
 from .connector import connectToPortal
+
+# import provider
+from Qagol.QagolProvider import qagolProvider
 
 
 class Qagol:
@@ -44,25 +53,25 @@ class Qagol:
             application at run time.
         :type iface: QgsInterface
         """
+        self.provider = qagolProvider()
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
         # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
+        locale = QSettings().value("locale/userLocale")[0:2]
         locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'Qagol_{}.qm'.format(locale))
+            self.plugin_dir, "i18n", "Qagol_{}.qm".format(locale)
+        )
 
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
-
+        self.dlg = QagolDialog()
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Qagol')
+        self.menu = self.tr(u"&Qagol")
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -81,19 +90,20 @@ class Qagol:
         :rtype: QString
         """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
-        return QCoreApplication.translate('Qagol', message)
+        return QCoreApplication.translate("Qagol", message)
 
     def add_action(
-            self,
-            icon_path,
-            text,
-            callback,
-            enabled_flag=True,
-            add_to_menu=True,
-            add_to_toolbar=True,
-            status_tip=None,
-            whats_this=None,
-            parent=None):
+        self,
+        icon_path,
+        text,
+        callback,
+        enabled_flag=True,
+        add_to_menu=True,
+        add_to_toolbar=True,
+        status_tip=None,
+        whats_this=None,
+        parent=None,
+    ):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -149,52 +159,74 @@ class Qagol:
             self.iface.addToolBarIcon(action)
 
         if add_to_menu:
-            self.iface.addPluginToWebMenu(
-                self.menu,
-                action)
+            self.iface.addPluginToWebMenu(self.menu, action)
 
         self.actions.append(action)
 
         return action
 
     def initGui(self):
+        QgsApplication.processingRegistry().addProvider(self.provider)
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/Qagol/icon.png'
+        icon_path = ":/plugins/Qagol/icon.png"
         self.add_action(
             icon_path,
-            text=self.tr(u'manage your AGOL data'),
+            text=self.tr(u"manage your AGOL data"),
             callback=self.run,
-            parent=self.iface.mainWindow())
+            parent=self.iface.mainWindow(),
+        )
+        self.dlg.loadServices.clicked.connect(self.loadServicesFunction)
 
         # will be set False in run()
         self.first_start = True
 
     def unload(self):
+        QgsApplication.processingRegistry().removeProvider(self.provider)
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginWebMenu(
-                self.tr(u'&Qagol'),
-                action)
+            self.iface.removePluginWebMenu(self.tr(u"&Qagol"), action)
             self.iface.removeToolBarIcon(action)
+
+    def loadCredFunctionAlg(self):
+
+        # self.dlg.credentialInteraction.setText("")
+        creds = {}
+        try:
+            s = QgsSettings()
+            creds["key"] = s.value("Qagol/api_key", None)
+            creds["name"] = s.value("Qagol/username", None)
+            creds["pw"] = s.value("Qagol/password", None)
+        except BaseException:
+            print("cred load failed, check QGIS global settings")
+        return creds
+
+    def loadServicesFunction(self):
+
+        creds = self.loadCredFunctionAlg()
+        items = connectToPortal(creds["name"], creds["pw"], creds["key"])
+        for item in items:
+            self.dlg.listWidget.addItem(item.title)
+            print(type(item.layers[0]))
 
     def run(self):
         """Run method that performs all the real work"""
-
+        # print(self.dlg.loadServices)
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
-            self.dlg = QagolDialog()
+        # if self.first_start == True:
+        #   self.first_start = False
+        #    self.dlg = QagolDialog()
 
         # show the dialog
         self.dlg.show()
         # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
-        items = connectToPortal(
-            "uname", "passowrd", "wobvC41dNVuRWon0")
-        print(items)
+
+        # print(creds)
+
+        # print(items)
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
