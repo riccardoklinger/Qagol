@@ -30,6 +30,7 @@ from .resources import *
 # Import the code for the dialog
 from .Qagol_dialog import QagolDialog
 import os.path
+from .connector import connectToPortal
 
 
 class Qagol:
@@ -82,18 +83,17 @@ class Qagol:
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('Qagol', message)
 
-
     def add_action(
-        self,
-        icon_path,
-        text,
-        callback,
-        enabled_flag=True,
-        add_to_menu=True,
-        add_to_toolbar=True,
-        status_tip=None,
-        whats_this=None,
-        parent=None):
+            self,
+            icon_path,
+            text,
+            callback,
+            enabled_flag=True,
+            add_to_menu=True,
+            add_to_toolbar=True,
+            status_tip=None,
+            whats_this=None,
+            parent=None):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -170,7 +170,6 @@ class Qagol:
         # will be set False in run()
         self.first_start = True
 
-
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -178,7 +177,6 @@ class Qagol:
                 self.tr(u'&Qagol'),
                 action)
             self.iface.removeToolBarIcon(action)
-
 
     def run(self):
         """Run method that performs all the real work"""
@@ -194,7 +192,11 @@ class Qagol:
         # Run the dialog event loop
         result = self.dlg.exec_()
         # See if OK was pressed
+        items = connectToPortal(
+            "uname", "passowrd", "wobvC41dNVuRWon0")
+        print(items)
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
+
             pass
